@@ -15,6 +15,7 @@ import DatePicker from "react-datepicker";
 import LineGraph from "../LineGraph";
 import {RoleConfig} from "../../auth/RoleConfig";
 import {NicConfig} from "../../auth/NicConfig";
+import Select from "react-select";
 
 function FBS({closeParent}) {
     ProtectiveRoute()
@@ -33,6 +34,8 @@ function FBS({closeParent}) {
     const [labels, setLabels] = useState([]);
     const [data, setData] = useState([]);
     const [showAddPatientButton, setShowAddPatientButton] = useState(true);
+    const [patients, setPatients] = useState([]);
+
 
 
     const [patientName, setPatientName] = useState("");
@@ -49,6 +52,21 @@ function FBS({closeParent}) {
             setIsPatient(false)
         }
     }, [])
+
+    useEffect(() => {
+        axios.get(`${BASE_URL}/api/v2/patient/all`, AuthConfig())
+            .then((res) => {
+                const nicOptions = res.data.map((patient) => ({
+                    value: patient.nic,
+                    label: patient.nic,
+                    id: patient.id // store patient ID with each option
+                }));
+                setPatients(nicOptions);
+            })
+            .catch((err) => {
+                console.error("Failed to fetch patients:", err);
+            });
+    }, []);
 
     const [isCollapsed, setIsCollapsed] = useState(true);
 
@@ -113,30 +131,7 @@ function FBS({closeParent}) {
                 }
             });
     }
-    const handlePatientSearch = (event) => {
-        const nic = event.target.value;  // Directly use the entered value here
-        setPatientNic(nic); // Update the state with the entered NIC value
 
-        // Use the entered NIC directly in the API call
-        axios.get(`${BASE_URL}/api/v2/reports/findAllBy?nic=${nic}`, AuthConfig())
-            .then((res) => {
-                const tempArray = res.data.map((row) => [
-                    row.patient.id,
-                    row.id,
-                    row.patient.user.firstName,
-                    row.patient.nic,
-                    row.reportedDate,
-                    row.fbs,
-                ]);
-                setTdArray(tempArray);
-                setPatientId(tempArray[0][0]);
-
-            })
-            .catch((error) => {
-                // Handle any errors here
-                console.error("Error fetching data:", error);
-            });
-    };
 
     const handleSearch = (event) => {
         axios.get(`${BASE_URL}/api/v2/reports/findAllBy?nic=${patientNic}`, AuthConfig())
@@ -174,7 +169,7 @@ function FBS({closeParent}) {
                 } else {
                     // If the response is empty
                     setTdArray([]);  // Clear any previous data
-                    setPatientId(null);
+                    setPatientId("");
                     setPatientName("");
                     setEmail("");
                     setNic("");
@@ -192,6 +187,11 @@ function FBS({closeParent}) {
         if (!isPatient) {
             setPatientNic("");
         }
+    };
+
+    const handleSelectNic = (selectedOption) => {
+        setPatientNic(selectedOption);
+        setPatientId(selectedOption?.id || ""); // set patient ID or clear it
     };
 
 
@@ -261,14 +261,14 @@ function FBS({closeParent}) {
                 <div>
                     <div className="form-group">
                         <div className="row">
-                            <div className="col-4"><label htmlFor="patientNic">Patient Nic</label></div>
+                            <div className="col-4"><label htmlFor="patientNic">Patient NIC</label></div>
                             <div className="col-5"><input
                                 type="text"
                                 className="form-control form-control-sm"
                                 id="patientNic"
                                 disabled={isPatient}
                                 required
-                                value={patientNic}
+                                value={typeof patientNic === "object" && patientNic !== null ? patientNic.label : patientNic}
                                 onChange={handlepatientNic}
                             /></div>
                             <div className="col-3">
@@ -276,7 +276,7 @@ function FBS({closeParent}) {
                                     className="fa-solid fa-magnifying-glass"></i> Search
                                 </button>
                             </div>
-                            {showAddPatientButton && (
+                            {showAddPatientButton && !isPatient && (
                                 <div>
                                     <button
                                         className="btn btn-light btn-block text-left"
@@ -305,14 +305,16 @@ function FBS({closeParent}) {
                                                                 <div className="form-group">
                                                                     <label htmlFor="newPatientNic">Patient
                                                                         Nic</label>
-                                                                    <input
-                                                                        type="text"
-                                                                        className="form-control form-control-sm"
-                                                                        id="newPatientNic"
-                                                                        required
-                                                                        onChange={handlePatientSearch}
-                                                                        placeholder="Enter Patient nic"
-                                                                    />
+                                                                    <div className="col-9">
+                                                                        <Select
+                                                                            isDisabled={isPatient}
+                                                                            options={patients}
+                                                                            value={patientNic}
+                                                                            onChange={handleSelectNic}
+                                                                            placeholder="Select Patient NIC"
+                                                                            isClearable
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                                 <div className="form-group">
                                                                     <label htmlFor="fbs">FBS value</label>

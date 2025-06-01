@@ -15,6 +15,7 @@ import DatePicker from "react-datepicker";
 import LineGraph from "../LineGraph";
 import {RoleConfig} from "../../auth/RoleConfig";
 import {NicConfig} from "../../auth/NicConfig";
+import Select from "react-select";
 
 function LipidProfile({closeParent}) {
     ProtectiveRoute()
@@ -42,6 +43,9 @@ function LipidProfile({closeParent}) {
     const[patientName , setPatientName] = useState("");
     const[email , setEmail] = useState("");
     const[nic , setNic] = useState("");
+    const [showAddPatientButton, setShowAddPatientButton] = useState(true);
+    const [patients, setPatients] = useState([]);
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
     const [isPatient, setIsPatient] = useState(true)
 
@@ -54,7 +58,28 @@ function LipidProfile({closeParent}) {
         }
     },[])
 
+    useEffect(() => {
+        axios.get(`${BASE_URL}/api/v2/patient/all`, AuthConfig())
+            .then((res) => {
+                const nicOptions = res.data.map((patient) => ({
+                    value: patient.nic,
+                    label: patient.nic,
+                    id: patient.id // store patient ID with each option
+                }));
+                setPatients(nicOptions);
+            })
+            .catch((err) => {
+                console.error("Failed to fetch patients:", err);
+            });
+    }, []);
 
+    const handleToggleCollapse = () => {
+        setIsCollapsed(prevState => !prevState);
+    };
+    const handleSelectNic = (selectedOption) => {
+        setPatientNic(selectedOption);
+        setPatientId(selectedOption?.id || ""); // set patient ID or clear it
+    };
     const handleDateChange = (date) => {
         // Zero out the time components
         const newDate = new Date(date);
@@ -149,9 +174,10 @@ function LipidProfile({closeParent}) {
                     row.tag,
                     row.chdl,
                     <div>
-                        <button type="button" className="btn btn-success mr-3" onClick={()=>handleView(row.id)}>
+                        <button type="button" className="btn btn-success mr-3" onClick={() => handleView(row.id)}>
                             <i className="fa-regular fa-eye"></i></button>
-                        <button type="button" disabled={isPatient} className="btn btn-danger" onClick={()=>handleDeleteFbs(row.id)}>
+                        <button type="button" className="btn btn-danger" disabled={isPatient}
+                                onClick={() => handleDeleteFbs(row.id)}>
                             <i className="fa-regular fa-trash-can"></i></button>
                     </div>
                 ]);
@@ -159,7 +185,7 @@ function LipidProfile({closeParent}) {
 
                 setPatientId(tempArray[0][0])
 
-                res.data.map((row)=>{
+                res.data.map((row) => {
                     setPatientName(row.patient.user.firstName)
                     setEmail(row.patient.user.email)
                     setNic(row.patient.nic)
@@ -173,7 +199,7 @@ function LipidProfile({closeParent}) {
                 console.error("Error fetching data:", error);
             });
 
-        if(!isPatient){
+        if (!isPatient) {
             setPatientNic("")
         }
 
@@ -261,12 +287,163 @@ function LipidProfile({closeParent}) {
                                 id="patientNic"
                                 disabled={isPatient}
                                 required
-                                value={patientNic}
+                                value={typeof patientNic === "object" && patientNic !== null ? patientNic.label : patientNic}
                                 onChange={handlepatientNic}
                             /></div>
                             <div className="col-3">
                                 <button type="button" className="btn btn-secondary" onClick={handleSearch}><i
                                     className="fa-solid fa-magnifying-glass"></i> Search</button></div>
+
+                            {showAddPatientButton && !isPatient && (
+                                <div>
+                                    <button
+                                        className="btn btn-light btn-block text-left"
+                                        type="button"
+                                        aria-expanded="false"
+                                        onClick={handleToggleCollapse}
+                                        style={{width: '800px'}}
+
+                                    >
+                                        ADD NEW PATIENT DETAILS
+                                    </button>
+
+                                    <div
+                                        className={`collapse ${isCollapsed ? '' : 'show'}`}
+                                        id="collapseThree"
+
+                                    >
+                                        <div>
+                                            <div className="card" style={{border: '1px solid rgba(135, 206, 250, 1)'}}>
+                                                <div className="card-body">
+                                                    <h5 className="card-title">BP FORM</h5>
+                                                    <hr/>
+                                                    <form onSubmit={handleBpSave}>
+                                                        <div className="row">
+                                                            <div className="col-6">
+                                                                <div className="form-group">
+                                                                    <label htmlFor="newPatientNic">Patient
+                                                                        Nic</label>
+                                                                    <div className="col-9">
+                                                                        <Select
+                                                                            isDisabled={isPatient}
+                                                                            options={patients}
+                                                                            value={patientNic}
+                                                                            onChange={handleSelectNic}
+                                                                            placeholder="Select Patient NIC"
+                                                                            isClearable
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="form-group">
+                                                                    <label htmlFor="fbs">HDL value</label>
+                                                                    <input disabled={disabled} type="number" required onChange={handleHdlChange} value={hdl} className="form-control" id="examplefbs"
+                                                                           placeholder="enter hdl"></input>
+                                                                </div>
+
+                                                                <div className="form-group">
+                                                                    <label htmlFor="fbs">LDL value</label>
+                                                                    <input disabled={disabled} type="number" required onChange={handleLdlChange} value={ldl} className="form-control" id="examplefbs"
+                                                                           placeholder="enter ldl"></input>
+                                                                </div>
+
+                                                                <div className="form-group">
+                                                                    <label htmlFor="fbs">VLDL value</label>
+                                                                    <input disabled={disabled} type="number" required onChange={handleVldlChange} value={vldl} className="form-control" id="examplefbs"
+                                                                           placeholder="enter vldl"></input>
+                                                                </div>
+
+                                                                <div className="form-group">
+                                                                    <label htmlFor="fbs">TAG value</label>
+                                                                    <input disabled={disabled} type="number" required onChange={handleTagChange} value={tag} className="form-control" id="examplefbs"
+                                                                           placeholder="enter tag"></input>
+                                                                </div>
+
+                                                                <div className="form-group">
+                                                                    <label htmlFor="fbs">CHDL value</label>
+                                                                    <input disabled={disabled} type="number" required onChange={handleChdlChange} value={chdl} className="form-control" id="examplefbs"
+                                                                           placeholder="enter chdl"></input>
+                                                                </div>
+
+                                                                <div className="form-group">
+                                                                    <label htmlFor="file">Upload File</label>
+                                                                    <input
+                                                                        type="file"
+                                                                        required
+                                                                        className="form-control-file"
+                                                                        disabled={disabled}
+                                                                        id="file"
+                                                                        onChange={handleFileChange}
+                                                                    />
+                                                                </div>
+
+                                                                <div className="form-group row">
+                                                                    <label htmlFor="dob" className="col-sm-3 col-form-label">Reported date</label>
+                                                                    <div className="col-sm-7">
+                                                                        <DatePicker
+                                                                            selected={reportedDate}
+                                                                            onChange={(date) => handleDateChange(date)}
+                                                                            dateFormat="yyyy-MM-dd"
+                                                                            disabled={disabled}
+                                                                            className="form-control"
+                                                                            placeholderText="Reported date"
+                                                                            required
+                                                                            isRequired
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                <button type="reset"
+                                                                        className="btn btn-secondary mr-2" disabled={isPatient} onClick={()=>setPreview(null)}>RESET <i
+                                                                    className="fa-solid fa-rotate-right"></i>
+                                                                </button>
+                                                                {disabled && (<>
+                                                                    <button type="button" disabled={isPatient} onClick={handleDisable}
+                                                                            className="btn btn-warning" >ADD NEW <i
+                                                                        className="fa-solid fa-plus"></i>
+                                                                    </button>
+                                                                </>)}
+
+                                                                {!disabled && (<>
+                                                                    <button type="submit" disabled={isPatient}
+                                                                            className="btn btn-success" >SAVE <i
+                                                                        className="fa-solid fa-floppy-disk"></i>
+                                                                    </button>
+                                                                </>)}
+
+
+                                                            </div>
+
+                                                            <div className="col-6">
+                                                                {preview && !disabled && (
+                                                                    <div className="preview-container" style={{ maxWidth: '100%', maxHeight: '300px', overflow: 'auto' }}>
+                                                                        <p>Preview:</p>
+                                                                        {file.type.startsWith('image/') ? (
+                                                                            <img src={preview} alt="Preview" className="preview-image" style={{ width: '100%', height: 'auto' }} />
+                                                                        ) : (
+                                                                            <embed src={preview} type={file.type} width="100%" height="300px" />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {preview && disabled && (
+                                                                    <div className="preview-container" style={{ maxWidth: '100%', maxHeight: '300px', overflow: 'auto' }}>
+                                                                        <div>
+                                                                            <p>File:</p>
+                                                                            <a href={`file:///${file.replace(/\\/g, '/')}`} download>
+                                                                                Download File
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
 
